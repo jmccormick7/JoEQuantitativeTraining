@@ -1,0 +1,68 @@
+# Creating Effective Data Visualizations (in R)
+
+### Case Western Reserve University Journal of Economics
+
+For this module the ggplot package in R will be used. In the R console type `install.packages('ggplot2')`. Alternatively, the tidyverse package contains ggplot2, and also comes with packages such as dplyr that can be used for data cleaning and processing. To install this instead of ggplot2 you can type in the R console `install.packages('tidyverse')`
+
+**Loading ggplot2**\
+In order to load ggplot2 into your R or R-markdown file, the following command must be included in your script or document. (Important to note: This must be inputted prior to using any of the packages)
+
+```{r}
+library(ggplot2)
+```
+
+### Loading Datasets
+
+In R we will load our datasets with different commands based on the format of our dataset.
+
+**CSV**
+
+This is the most common format of dataset we will come across. CSV stands for comma-separated values. In R we can use the following command to load the dataset:\
+`var_name <- read.csv('filepath')` This will set the var_name to the data, and will load the data from the file path (this can be an absolute or relative path (relative means from the folder your file is in, absolute would be from the root directory of your operating system))
+
+If you do not have headers (this is a fairly rare case) then u must include the headers parameter (it is by default True):\
+`var_name <- read.csv('filepath', header=F)`
+
+**XLSX (Microsoft Excel)**
+
+This is another common format of dataset. In R however we need another library in order to read them in well.
+
+In the console install `readxl` using `packages.install('readxl')`. Then in your document use `library(readxl)`
+
+Then we can use: `var_name <- read_excel('filepath')`\
+There are lots of powerful optional arguments that you can refer to the documentation on. The only one that could be generally useful is the sheet_name parameter:
+
+Unlike Python, R is a 1 index language, so it is defaulted at 1 (so the first sheet). If you need to pull data from a different sheet the simplest way to do this is to specify the sheet number or name in the sheet_name parameter.
+
+Imagine I have a excel sheet with 2 sheets, original_data, and corrected_data. If I use the command with just the filepath I will pull the data from the original_data sheet. If I want the corrected_data, I have 2 options:
+
+-   Use the index:
+
+`var_name <- read_excel('filepath', sheet=2)`
+
+-   Use the sheet name:
+
+`var_name <- read_excel('filepath', sheet='corrected_data')`
+
+**TXT**
+
+These are much less common but some old census files I have seen use pipe-delimited text files. In this case you will have to use a different command and declare the delimiter if it is anything but tab delimited.
+
+`var_name = read.table('filepath', sep = '|')`
+
+\^ This example is for pipe-delimited text file parsing.
+
+The data would look something like this:
+
+> name \| age \| income\
+> Mark \| 25 \| 0
+
+**RData**
+
+This is a data format that is unique to R, RData files are not frequently available from most data sources, but you can saved clean data as RData files, and you could run into them as R users. These are the easiest to load:
+
+`var_name <- load('filepath')`
+
+\*I would not recommend using this format of data to save your cleaned data if your teammate uses Python, in general csv is the easiest to work with across languages and would be my recommendation for data formats.
+
+For any other formats of data (JSON, XML, SHP, etc) reach out to your project leads or me for help (often ChatGPT can help)
