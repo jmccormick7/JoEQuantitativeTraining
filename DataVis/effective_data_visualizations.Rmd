@@ -7,9 +7,7 @@ For this module the ggplot package in R will be used. In the R console type `ins
 **Loading ggplot2**\
 In order to load ggplot2 into your R or R-markdown file, the following command must be included in your script or document. (Important to note: This must be inputted prior to using any of the packages)
 
-```{r}
-library(ggplot2)
-```
+`library(ggplot2)`
 
 ### Loading Datasets
 
@@ -66,3 +64,17 @@ This is a data format that is unique to R, RData files are not frequently availa
 \*I would not recommend using this format of data to save your cleaned data if your teammate uses Python, in general csv is the easiest to work with across languages and would be my recommendation for data formats.
 
 For any other formats of data (JSON, XML, SHP, etc) reach out to your project leads or me for help (often ChatGPT can help)
+
+```{r}
+## For this example, we will be sourcing our data from the MTA Daily Ridership Data.
+##      In this cell block we will read in our data and look at the columns that we have
+##      as well as what our data looks like.
+
+##  As we can see, we have a timeseries of data that is indexed daily,
+##      our columns are split by method of transit and for each method of transit we have
+##      the number of riders for that day as well as the % of ridership compared a comparable pre-pandemic day
+
+data <- read.csv('MTA_Daily_Ridership_Data__Beginning_2020_20240629.csv')
+print(data.columns)
+data.head
+```
