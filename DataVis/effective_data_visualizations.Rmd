@@ -75,6 +75,6 @@ For any other formats of data (JSON, XML, SHP, etc) reach out to your project le
 ##      the number of riders for that day as well as the % of ridership compared a comparable pre-pandemic day
 
 data <- read.csv('MTA_Daily_Ridership_Data__Beginning_2020_20240629.csv')
-print(data.columns)
-data.head
+print(names(data))
+head(data)
 ```
