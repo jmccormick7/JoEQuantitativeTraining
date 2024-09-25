@@ -73,8 +73,185 @@ For any other formats of data (JSON, XML, SHP, etc) reach out to your project le
 ##  As we can see, we have a timeseries of data that is indexed daily,
 ##      our columns are split by method of transit and for each method of transit we have
 ##      the number of riders for that day as well as the % of ridership compared a comparable pre-pandemic day
-
+## TO use thse function you will need to do `install_packages()` for tidyverse and lubridate
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(tidyverse) 
 data <- read.csv('MTA_Daily_Ridership_Data__Beginning_2020_20240629.csv')
 print(names(data))
 head(data)
+## R peculiarity so we will rename the columns 
+
+data <- data %>%
+  rename(
+    Date = `Date`,
+    `Subways: Total Estimated Ridership` = `Subways..Total.Estimated.Ridership`,
+    `Subways: % of Comparable Pre-Pandemic Day` = `Subways....of.Comparable.Pre.Pandemic.Day`,
+    `Buses: Total Estimated Ridership` = `Buses..Total.Estimated.Ridership`,
+    `Buses: % of Comparable Pre-Pandemic Day` = `Buses....of.Comparable.Pre.Pandemic.Day`,
+    `LIRR: Total Estimated Ridership` = `LIRR..Total.Estimated.Ridership`,
+    `LIRR: % of Comparable Pre-Pandemic Day` = `LIRR....of.Comparable.Pre.Pandemic.Day`,
+    `Metro-North: Total Estimated Ridership` = `Metro.North..Total.Estimated.Ridership`,
+    `Metro-North: % of Comparable Pre-Pandemic Day` = `Metro.North....of.Comparable.Pre.Pandemic.Day`,
+    `Access-A-Ride: Total Scheduled Trips` = `Access.A.Ride..Total.Scheduled.Trips`,
+    `Access-A-Ride: % of Comparable Pre-Pandemic Day` = `Access.A.Ride....of.Comparable.Pre.Pandemic.Day`,
+    `Bridges and Tunnels: Total Traffic` = `Bridges.and.Tunnels..Total.Traffic`,
+    `Bridges and Tunnels: % of Comparable Pre-Pandemic Day` = `Bridges.and.Tunnels....of.Comparable.Pre.Pandemic.Day`,
+    `Staten Island Railway: Total Estimated Ridership` = `Staten.Island.Railway..Total.Estimated.Ridership`,
+    `Staten Island Railway: % of Comparable Pre-Pandemic Day` = `Staten.Island.Railway....of.Comparable.Pre.Pandemic.Day`
+  )
 ```
+
+### Effective Line Graph
+
+Effective line graphs avoid using too many lines, and too many colors. It is key to keep graphs simple, our line graphs are to help the reader quickly understand our argument.
+
+In this portion we will learn how to use the python library `ggplot2` to do create a line graph.
+
+In `ggplot2` we can set our color using the `color` parameter. We can either supply a hexcode or a string like 'blue'. We should have Journal theme hexcodes available by the time we start publishing. In `ggplot2` we add lines to a plot using `geom_line` and we use `aes` to specify our y or our x.
+
+```{r, fig.width=15, fig.height=5}
+
+data <- data %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%Y"))  
+
+# Create the plot
+ggplot(data, aes(x = Date)) +
+  geom_line(aes(y = `Subways: Total Estimated Ridership`, color = "Subway Ridership")) +
+  geom_line(aes(y = `Bridges and Tunnels: Total Traffic`, color = "Bridge and Tunnel Traffic")) +
+  scale_color_manual(values = c("Subway Ridership" = "#0B4F6C", "Bridge and Tunnel Traffic" = "#9197AE")) +
+  labs(title = "Subway Ridership vs. Bridge and Tunnel Traffic in NYC (2020-2024)",
+       x = "Year",
+       y = "Number of Persons/Vehicles",
+       color = "Legend") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+```
+This graph above is ok, but its messy, the data is too frequent for this long period of time, lets try and graph by week instead. 
+```{r, fig.width=15, fig.height=5}
+
+# Step 1: Remove NA values in Date and other columns
+data <- data %>% filter(!is.na(Date))
+
+# Step 2: Create Year and Week columns
+data <- data %>%
+  mutate(
+    Year = year(Date),        # Extract year
+    Week = floor_date(Date, "week")  # Use floor_date to get the first day of the week
+  )
+
+
+# Step 3: Drop unnecessary columns
+data <- data %>%
+  select(-Year)
+
+# Step 4: Group by Week and calculate mean
+data_grouped <- data %>%
+  group_by(Week) %>%
+  summarise(across(everything(), mean, na.rm = TRUE), .groups = 'drop')
+
+
+ggplot(data_grouped, aes(x = Week)) +
+  geom_line(aes(y = `Subways: Total Estimated Ridership`, color = "Subway Ridership"), size = 1) +
+  geom_line(aes(y = `Bridges and Tunnels: Total Traffic`, color = "Bridge and Tunnel Traffic"), size = 1) +
+  scale_color_manual(values = c("Subway Ridership" = "#0B4F6C", "Bridge and Tunnel Traffic" = "#9197AE")) +
+  labs(title = "Subway Ridership vs. Bridge and Tunnel Traffic in NYC (2020-2024)",
+       x = "Week",
+       y = "Number of Persons/Vehicles",
+       color = "Legend") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+### Effective Scatter Plots
+
+Scatter plots are great at showing the relationships between two variables. We can also hightlight certain datapoints that we want to hightlight, maybe it corresponds to a particular area of interest (like below highlighting during Covid) Or maybe we are identifying interesting outliers. The goal of a scatter plot is to show some sort of trend in the data between two variables. To make scatter plots we simply use `plt.scatter(x, y)` `label` and `color` are still optional parameters that we can set.
+
+```{r, fig.width=10, fig.height=5}
+# Step 1: Create a new column to indicate if the date is during COVID
+data <- data %>%
+  mutate(CovidHighlight = ifelse(Date > as.Date("2020-03-19") & Date < as.Date("2021-06-01"), "Covid-19 Dates", "Non Covid Days"))
+
+# Step 2: Create the scatter plot
+ggplot(data, aes(x = `Bridges and Tunnels: Total Traffic`, y = `LIRR: Total Estimated Ridership`, color = CovidHighlight)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Non Covid Days" = "#9197AE", "Covid-19 Dates" = "#0B4F6C")) +
+  labs(title = "LIRR Ridership vs. Bridge and Tunnel Traffic in NYC (2020-2024)",
+       x = "Number of vehicles",
+       y = "Number of persons",
+       color = "Legend") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_x_continuous(labels = scales::comma) +  
+  scale_y_continuous(labels = scales::comma) +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+### Effective Bar Graphs
+
+Bar charts are excellent for comparing quantities across different categories. They provide a clear visual representation of data, making it easy to see which categories are larger or smaller. You can also highlight specific bars to draw attention to particular data points, such as those that are above a certain threshold or represent significant changes.
+
+To create a bar chart in ggplot2, you can use `geom_barbar(stat, position)`, where x represents the categories and height represents the values. You can customize the appearance using optional parameters like `color`. 
+
+```{r, fig.width=12, fig.height=6}
+# Step 1: Filter and summarize the data
+year_data <- data %>%
+  filter(year(Week) %in% c(2020, 2021, 2022)) %>%
+  mutate(year = year(Week)) %>%
+  group_by(year) %>%
+  summarise(
+    `Subways: Total Estimated Ridership` = sum(`Subways: Total Estimated Ridership`, na.rm = TRUE),
+    `Buses: Total Estimated Ridership` = sum(`Buses: Total Estimated Ridership`, na.rm = TRUE),
+    `LIRR: Total Estimated Ridership` = sum(`LIRR: Total Estimated Ridership`, na.rm = TRUE),
+    `Metro-North: Total Estimated Ridership` = sum(`Metro-North: Total Estimated Ridership`, na.rm = TRUE),
+    `Bridges and Tunnels: Total Traffic` = sum(`Bridges and Tunnels: Total Traffic`, na.rm = TRUE)
+  ) %>%
+  pivot_longer(cols = -year, names_to = "Transportation Mode", values_to = "Estimated Ridership")
+
+# Step 2: Define colors
+colors <- c("#00008B", "#1E90FF", "#00CED1", "#A0C4E0", "#4682B4")
+
+# Step 3: Create the bar plot
+ggplot(year_data, aes(x = as.factor(year), y = `Estimated Ridership`, fill = `Transportation Mode`)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = colors) +
+  labs(title = 'Average Ridership by Transportation Mode (2020-2022)',
+       x = 'Year',
+       y = 'Average Estimated Ridership') +
+  scale_y_continuous(labels = scales::comma) +  
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5), legend.title = element_blank())
+
+# Step 4: Create the log scale plot
+ggplot(year_data, aes(x = as.factor(year), y = `Estimated Ridership`, fill = `Transportation Mode`)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = colors) +
+  labs(title = 'Average Ridership by Transportation Mode (2020-2022) on Log Scale',
+       x = 'Year',
+       y = 'Average Estimated Ridership') +
+  scale_y_log10(labels = scales::comma) +  # Log scale y-axis
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5), legend.title = element_blank())
+```
+### Effective Histograms
+
+Histograms are useful for displaying the distribution of a dataset, showing how frequently different ranges of values occur. They help identify patterns, such as skewness, modality, and the presence of outliers. Highlighting specific bins can emphasize certain ranges of interest, like values that fall within a target range or outliers.
+
+To create a histogram in ggplot2, you can use `geom_histogram(bins, fill, color)`, where data is the dataset and bins defines how many intervals you want to divide your data into.
+For example, below we see a bimodal distribution of sorts on Subway Ridership
+```{r, fig.width=10, fig.height=5}
+
+ggplot(daily_data, aes(x = `Subways: Total Estimated Ridership`)) +
+  geom_histogram(bins = 30, fill = "#00008B", color = "black", alpha = 0.75) +
+  labs(title = "Distribution of Daily Subway Ridership (2020-2024)",
+       x = "Number of Riders",
+       y = "Frequency") +
+  scale_x_continuous(labels = scales::comma)
+  theme_minimal() +
+  theme(panel.grid.major.y = element_line(), 
+        panel.grid.minor = element_blank())  
+```
+

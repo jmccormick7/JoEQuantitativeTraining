@@ -1,0 +1,357 @@
+---
+title: "Data Cleaning with dplyr"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Load Data
+
+Load the dataset from a CSV file.
+
+```{r}
+data <- read_csv('2024_medalists_all.csv')
+```
+
+## Loading Datasets
+
+In R we will load our datasets with different commands based on the format of our dataset.
+
+*CSV*
+
+This is the most common format of dataset we will come across. CSV stands for comma-separated values. In R we can use the following command to load the dataset:var_name \<- read.csv('filepath') This will set the var_name to the data, and will load the data from the file path (this can be an absolute or relative path (relative means from the folder your file is in, absolute would be from the root directory of your operating system))
+
+If you do not have headers (this is a fairly rare case) then u must include the headers parameter (it is by default True):var_name \<- read.csv('filepath', header=F)
+
+XLSX (Microsoft Excel)
+
+This is another common format of dataset. In R however we need another library in order to read them in well.
+
+In the console install readxl using packages.install('readxl'). Then in your document use library(readxl)
+
+Then we can use: var_name \<- read_excel('filepath')There are lots of powerful optional arguments that you can refer to the documentation on. The only one that could be generally useful is the sheet_name parameter:
+
+Unlike Python, R is a 1 index language, so it is defaulted at 1 (so the first sheet). If you need to pull data from a different sheet the simplest way to do this is to specify the sheet number or name in the sheet_name parameter.
+
+Imagine I have a excel sheet with 2 sheets, original_data, and corrected_data. If I use the command with just the filepath I will pull the data from the original_data sheet. If I want the corrected_data, I have 2 options:
+
+Use the index:
+
+var_name \<- read_excel('filepath', sheet=2)
+
+Use the sheet name:
+
+var_name \<- read_excel('filepath', sheet='corrected_data')
+
+TXT
+
+These are much less common but some old census files I have seen use pipe-delimited text files. In this case you will have to use a different command and declare the delimiter if it is anything but tab delimited.
+
+var_name = read.table('filepath', sep = '\|')
+
+\^ This example is for pipe-delimited text file parsing.
+
+The data would look something like this:
+
+name \| age \| incomeMark \| 25 \| 0
+
+RData
+
+This is a data format that is unique to R, RData files are not frequently available from most data sources, but you can saved clean data as RData files, and you could run into them as R users. These are the easiest to load:
+
+var_name \<- load('filepath')
+
+\*I would not recommend using this format of data to save your cleaned data if your teammate uses Python, in general csv is the easiest to work with across languages and would be my recommendation for data formats.
+
+For any other formats of data (JSON, XML, SHP, etc) reach out to your project leads or me for help (often ChatGPT can help)
+
+## I. Cleaning Data
+
+Cleaning data is often an important first step, data is rarely clean and nicely formatted. This can range from having to change datatypes to having to deal with null values, or oddly inputted null values for example using a string with "No Value Found". When starting out with a new dataset there are a few helpful commands we can use to see different pieces of information about our data set.
+
+To get a peak at our data set we can use the `head()` command.
+
+``` r
+head(data)
+```
+
+We can also get summary statistics about our data set using `glimpse()` and `summary()`
+
+``` r
+glimpse(data)
+summary(data)
+```
+
+Lets try this with our olympian dataset:
+
+```{r}
+head(data)
+```
+
+Retrieve information about the DataFrame and its structure.
+
+```{r}
+glimpse(data)
+```
+
+Generate descriptive statistics of the data.
+
+```{r}
+summary(data)
+```
+
+### Dealing with Nulls
+
+In many of our datasets we will have missing values, one thing we need to figure out is where are these missing values, and what we should do with these missing values. To tabulate our missing values the following simple code can be used:
+
+```{r}
+summarise_all(data, funs(sum(is.na(.))))
+```
+
+### Dropping Null Values
+
+Now that we have the number of nulls there are various approaches we can take. The first of which is to just drop any row that has a null value.
+
+``` r
+no_nulls = drop_na(data)
+```
+
+But imagine that we only care about certain rows not having null data we can limit our dropna statement using the `subset` parameter. Maybe we need date of birth and sport to be non null then we can do:
+
+``` r
+no_nulls_select = drop_na(data, c("date_of_birth", "sport"))
+```
+
+Lets see the effect below:
+
+```{r}
+no_nulls <- drop_na(data)
+summarise_all(no_nulls, funs(sum(is.na(.))))
+```
+
+## Remove Rows Missing Specific Columns
+
+Specifically remove rows with missing values only in the "date_of_birth" and "sport" columns, then recount missing values.
+
+```{r}
+no_nulls_select <- drop_na(data, c("date_of_birth", "sport"))
+summarise_all(no_nulls_select, funs(sum(is.na(.))))
+```
+
+### Filling in Data in R
+
+When working with missing data in R, there are a couple of common approaches depending on the type of variable.
+
+#### For Categorical Variables
+
+If you have categorical variables with missing values, you can fill them with a placeholder like "Unknown." Here's how to do it:
+
+``` r
+data$categorical_column[is.na(data$categorical_column)] <- "Unknown"
+```
+
+#### For Numerical Variables
+
+For numerical variables, a common approach is to fill in missing values with the mean of that column. However, be cautious with this method, as there are various strategies for handling missing data, each with its pros and cons. In general, it may be safer to drop rows with missing values, especially if they are significant for your analysis. Here's how to fill with the mean:
+
+``` r
+data$column_name[is.na(data$column_name)] <- mean(data$column_name, na.rm = TRUE)
+```
+
+### Correcting Data Types
+
+Sometimes the wrong datatype can be assumed. For example, if in a CSV, null integer values were reported as "null" or "N/A," we may end up reading our data as a string when we really wanted a numerical value. This is a problem because if we perform any computations, they will not be carried out correctly. For instance, `4 + 5 = 9`, but `"4" + "5"` results in `"45"`.
+
+In R, we can use the `as.numeric()` function to convert a string to a numeric type. To turn a string into an integer, we could drop our null values and do:
+
+``` r
+data$intNotString <- as.numeric(data$intNotString)
+```
+
+One other transformation we will often make is to turn our dates into Date or POSIXct objects. This ensures that when you graph, R treats the date as a date and not as a string. To do this, you can use the as.Date() function or as.POSIXct():
+
+``` r
+data$date_column <- as.Date(data$date_column, format="%Y-%m-%d")  # For Date objects
+# or
+data$date_column <- as.POSIXct(data$date_column, format="%Y-%m-%d")  # For POSIXct objects
+```
+
+### Standardizing Text Data
+
+Dealing with strings can be challenging in messy data. There are a couple of methods that can help with text data standardization. For instance, you might think one column will be categorical, but the data is messy. Values like `"Group 1"`, `"Group1"`, `"group1"`, and `"group 1"` may all refer to the same group.
+
+Two useful methods for strings in R that can help are as follows:
+
+1.  Convert all characters to lowercase:
+
+    ``` r
+    data$string_column <- tolower(data$string_column)
+    ```
+
+2.  Remove leading and trailing spaces: `r     data$string_column <- trimws(data$string_column)` These commands will turn all letters to lowercase and remove any extra spaces. Removing spaces is also important; for example, "Group 1" and "Group 1" may look the same in Excel but are considered different values when working programmatically with data.
+
+## II. Data Normalization
+
+Very often, we will need to normalize our data. For the most accurate data analysis, we want our data to be finely defined. For example, if we have income per geocode or per state, it serves as a poor comparison point since certain states have larger populations than others. To derive meaningful insights from this data, we need to normalize it.
+
+Below, multiple methods of normalization will be discussed, along with how to implement them using dyplyr \### Monetary Adjustments
+
+#### Adjusting for Inflation
+
+When working with time-series data, which involves data collected over time, adjusting for inflation is important. For example, the value of USD in 2009 is not the same as its value in 2024. To make meaningful comparisons, we need to account for inflation over time.
+
+#### Standardizing to One Currency
+
+When dealing with data from multiple countries, we may need to add an extra step: standardizing the currencies to one common currency. This process becomes more complex when working with multiple countries across various years. We need to adjust for inflation for each individual country and then standardize to one currency.
+
+Here's how you might adjust for inflation and standardize currencies using `dplyr`:
+
+``` r
+library(dplyr)
+
+# Example dataset
+data <- data.frame(
+  country = c("USA", "Canada", "USA", "Canada"),
+  year = c(2009, 2009, 2024, 2024),
+  amount = c(1000, 1200, 1500, 1400)
+)
+
+# Adjusting for inflation (example adjustment factors)
+inflation_factors <- data.frame(
+  country = c("USA", "Canada"),
+  factor_2009 = c(1.0, 1.1), # Example inflation factor for 2009
+  factor_2024 = c(1.5, 1.3)  # Example inflation factor for 2024
+)
+
+# Merging datasets and adjusting amounts
+adjusted_data <- data %>%
+  left_join(inflation_factors, by = "country") %>%
+  mutate(
+    adjusted_amount = ifelse(year == 2009, amount * factor_2024 / factor_2009, amount)
+  ) %>%
+  select(country, year, adjusted_amount)
+
+print(adjusted_data)
+```
+
+### Adjusting for Population
+
+When dealing with large-scale collected data, it's often necessary to take population size into account. For instance, when analyzing COVID-19 infections, we want to scale the number of infections by the population within the geographic region of interest. To do this, we can standardize using the following formula:
+
+$$ \frac{\text{covid infections}_i}{\text{total population}_i} $$
+
+Where $i$ represents the location. Thus, for each location, our output would be the number of COVID-19 infections in that location divided by the number of people in that location.
+
+To create a new column for COVID-19 infections per capita, you can use the following code:
+
+``` r
+# Calculating COVID infections per capita
+data$covidPerCapita <- data$covid_infections / data$total_population
+```
+
+#### Standardization
+
+When dealing with data that is not necessarily related to other columns but where we want to understand the scale properly, we can use standardization.
+
+The simplest definition of standardization is:
+
+$$ \phi(x) = \frac{x - \overline{x}}{\sigma} $$
+
+Where $\overline{x}$ is the column mean, and $\sigma$ is the standard deviation of the column.
+
+To standardize a column in R, you can use the following code:
+
+``` r
+data$standardized_col <- (data$col - mean(data$col)) / sd(data$col)
+```
+
+## III. Joining Datasets
+
+There are multiple ways to merge or join datasets. To do this we will do what is called a join. There are 4 main types of joins to know **left**, **right**, **inner**, and **outer**. There are other variations of joins but these 4 are all that you need to understand to do most, if not all dataset joining.
+
+#### What is the difference between left, right, inner and outer joins?
+
+The main difference between these joins is how we connect the data, and how we deal with misaligned data, that is data that appears in one dataset but not the other.
+
+#### In all joins we need a join key (what column we are joining on)
+
+Our join key is what we use to match rows in each dataset to eachother. For example if I have a dataset with geocodes and wanted to combine two datasets at the same geographic level with the same geocode format I could use a join to make a new dataset containing all the columns from the two datasets I am combining.
+
+In pandas, we use the following syntax: `pd.merge(how="method (left,right,inner,outer)", on=[join_key])`
+
+### Left and Right Joins
+
+Left and right joins are very simple to think about. If we think about our first dataset as the left dataset, and the second datasets as the right dataset, the left or right join simply indicates which dataset to keep intact.
+
+For a left join any record (or row) that exists in the left dataset will exist in the final dataset regardless of whether there is data in the right dataset corresponding to the joinkey of the record in the left dataset. In this case null values will be used to fill in the values of the right data columns
+
+The right join is the opposite all rows from the right dataset will be stored in the new joined dataset and any data in the right dataset that does not have matching data in the left dataset will be filled with null values.
+
+*Important Note:* If you use a left join and data in the right side does not exist on the left dataset then it will be dropped and vice versa. If keeping all the data is important Outer Joins are a better choice of join method.
+
+*Important Note:* A futher implementation detail that is important to remember is that if you use a left join for example. If a record in the left dataset has multiple records in the right dataset then multiple rows will be created as the left will "join" to both matching records on the right side. This applies to right joins as well but vice-versa
+
+``` r
+# Left join
+left_join_result <- left %>%
+  left_join(right, by = "joinkey")
+
+# Right join
+right_join_result <- left %>%
+  right_join(right, by = "joinkey")
+```
+
+### Inner and Outer Joins
+
+#### Inner Joins
+
+An inner join connects the two datasets for all records that have data within both datasets. So any data that is only in the right, or only in the left are dropped.
+
+#### Outer Joins
+
+Outer joins do the opposite they combine two datasets in their entirety filling in any missing data with null values. So all records in both left and right dataset will continue to exist in the joined dataset, that is with null values for any mismatches.
+
+``` r
+## Inner Join
+inner_joined <- left %>% inner_join(right, by = "joinkey")
+
+## Outer Join
+outer_joined <- left %>% full_join(right, by = "joinkey")
+```
+
+### Concatenating Datasets
+
+Often times our data could be split into multiple files. For example they may pe partitioned by year. If they have the same columns you can connect them into one DataFrame. For example:
+
+``` r
+# Load data from CSV files
+data2021 <- read_csv("data2021.csv")
+data2022 <- read_csv("data2022.csv")
+data2023 <- read_csv("data2023.csv")
+# Combine all data into one data frame
+all_data <- bind_rows(data2021, data2022, data2023)
+```
+
+### Aggregation
+
+Sometimes our data is too granular, or we need to aggregate by some metric. For example if we have daily data we may want to aggregate to the year or to the month. Pandas gives us the ability to group by a column, and then aggregate using one of two methods, either one aggregation method for all columns (e.g., mean, median, sum). Or you can build a dictionary of columns to aggregation function. An example of both are shown below for say aggregating down and grouping by month.
+
+``` r
+# Aggregating by Month using mean for all columns
+data <- data %>%
+  group_by(Month) %>%
+  summarise(across(everything(), mean, na.rm = TRUE))
+
+# Alternatively, aggregating with different functions for specific columns
+data <- data %>%
+  group_by(Month) %>%
+  summarise(
+    col1 = mean(col1, na.rm = TRUE),
+    col2 = sum(col2, na.rm = TRUE),
+    col3 = median(col3, na.rm = TRUE)
+    # Add more columns and functions as needed
+  )
+```
